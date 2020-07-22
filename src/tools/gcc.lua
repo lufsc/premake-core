@@ -523,7 +523,6 @@
 
 		local result = {}
 
-
 		if not systemonly then
 			if cfg.flags.RelativeLinks then
 				local libFiles = config.getlinks(cfg, "siblings", "basename")
