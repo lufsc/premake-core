@@ -562,13 +562,82 @@
 		prepare()
 
 		local links = gcc.getlinks(cfg)
-		for i,v in ipairs(links) do
-			print(v)
-		end
 		test.isequal({"bin/Debug/lib" .. nameB .. ".a", "bin/Debug/lib" .. nameA .. ".a"}, links)
 	end
 
+	function suite.links_staticSiblingLibraryPreservesLinkOrder()
+		local n = #wks.projects + 1
 
+		deps = {}
+		for i = 1,4 do
+			deps[i] = "dep" .. (i + n + 2)
+			projectDirective(deps[i])
+			language "C++"
+			kind "StaticLib"
+		end
+
+		local nameA = "lib" .. tostring(n)
+		projectDirective(nameA)
+		language "C++"
+		kind "StaticLib"
+		links {deps[1], deps[2]}
+
+		local nameB = "lib" .. tostring(n+1)
+		projectDirective(nameB)
+		language "C++"
+		kind "StaticLib"
+		links {nameA, deps[1], deps[3]}
+
+		local nameC = "exe" .. tostring(n+2)
+		prj = projectDirective(nameC)
+		language "C++"
+		kind "ConsoleApp"
+		links(nameB)
+
+		prepare()
+
+		local function getLibName(name) return "bin/Debug/lib" .. name .. ".a" end
+
+		local links = gcc.getlinks(cfg)
+		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[1]), getLibName(deps[3]), getLibName(deps[2])}, links)
+	end
+
+	function suite.links_onContradictoryLinkOrder()
+		local n = #wks.projects + 1
+
+		deps = {}
+		for i = 1,3 do
+			deps[i] = "dep" .. (i + n + 2)
+			projectDirective(deps[i])
+			language "C++"
+			kind "StaticLib"
+		end
+
+		local nameA = "lib" .. tostring(n)
+		projectDirective(nameA)
+		language "C++"
+		kind "StaticLib"
+		links {deps[2], deps[1], deps[3]}
+
+		local nameB = "lib" .. tostring(n+1)
+		projectDirective(nameB)
+		language "C++"
+		kind "StaticLib"
+		links {nameA, deps[1], deps[2], deps[3]}
+
+		local nameC = "exe" .. tostring(n+2)
+		prj = projectDirective(nameC)
+		language "C++"
+		kind "ConsoleApp"
+		links(nameB)
+
+		prepare()
+
+		local function getLibName(name) return "bin/Debug/lib" .. name .. ".a" end
+
+		local links = gcc.getlinks(cfg)
+		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[1]), getLibName(deps[2]), getLibName(deps[3])}, links)
+	end
 --
 -- Test that sibling and external links are grouped when required
 --

@@ -475,49 +475,77 @@
 
 	function gcc.getlinks(cfg, systemonly, nogroups)
 		--
-		-- Adds a link to the list of links tbl.
+		-- Finds the index of an element in an array-like table. Nil if not found.
 		--
-		local function addLink (tbl, link)
+		local function find(tbl, elem)
 			for i,v in ipairs(tbl) do
-				-- Remove duplicates. As the link order of libraries matters,
-				-- the newly added lib needs to be at the end of the list.
-				if v == link then
-					table.remove(tbl, i)
-					break
+				if v == elem then
+					return i
 				end
 			end
-
-			table.insert(tbl, link)
+			return nil
 		end
 
 		--
-		-- Add the links from the specified project and all of its dependencies to the list 'tbl'.
-		-- If prjName is nil it uses the adds the libs of
+		-- Inserts the links in additionalLinks into result while preserving the link order.
+		-- This means, if one element comes before the other in one of the input lists, it will
+		-- still be before the other in result when this function returns. If the link order is
+		-- contradictory, the function just chooses one path over the other. This will not break
+		-- anything, as the link-order is irrelevant in this case.
 		--
-		local function addLinks (tbl, cfg, prjName)
-			-- As only the 'links' field matters, the config can be used as the project
-			-- on the first level of recursion.
-			local prj = cfg
-			if prjName ~= nil then
-				prj = cfg.solution.projects[prjName]
-				if prj == nil then
-					-- The link does not link to a sibling project.
-					return
+		local function insertAdditionalLinks(result, additionalLinks)
+			-- The amount of elements from additionalLinks that have been inserted.
+			local nInserted = 0
+			for i,v in ipairs(additionalLinks) do
+				local targetIndex = find(result, v)
+				-- Is this link already in the result list?
+				if targetIndex ~= nil then
+					-- Are there any links, that have not been inserted?
+					if nInserted <= i - 1 then
+						for k = i - 1, nInserted + 1, -1  do
+							-- Insert the link into the table, before the current element.
+							table.insert(result, targetIndex, additionalLinks[k])
+						end
+					end
+					-- We have inserted all elements before this.
+					nInserted = i;
 				end
 			end
-			for _,v in ipairs(prj.links) do
-				addLink(tbl, v)
-				addLinks(tbl, cfg, v)
+			-- Append all missing elements to the back.
+			for i = nInserted+1, #additionalLinks do
+				table.insert(result, additionalLinks[i])
 			end
+		end
+
+		--
+		-- Returns the updated 'links' list for the project 'proj'. Only the 'links' property
+		-- of 'proj' will be used.
+		--
+		local function intnlGetLinks(cfg, proj)
+			local result = {}
+			-- Make a copy of the toplevel links.
+			for _, v in ipairs(proj.links) do
+				table.insert(result, v)
+			end
+			-- Check dependencies for every link.
+			for i,v in ipairs(result) do
+				local dependantProject = cfg.solution.projects[v]
+				-- Is 'v' a link to a sibling.
+				if dependantProject ~= nil then
+					-- Get the links of this project.
+					local additionalLinks = intnlGetLinks(cfg, dependantProject)
+					-- And insert them.
+					insertAdditionalLinks(result, additionalLinks)
+				end
+			end
+			return result
 		end
 
 		-- Only calculate the dependencies once.
 		if cfg._gccLinkAddDone ~= true then
-			newLinks = {}
-			addLinks(newLinks, cfg)
-
-			-- replace the old links with the updated version.
-			cfg.links = newLinks
+			-- replace the old links with the updated version. Use cfg for second parameter, as
+			-- only cfg.links will be accessed.
+			cfg.links = intnlGetLinks(cfg, cfg)
 			cfg._gccLinkAddDone = true
 		end
 
