@@ -8,6 +8,7 @@
 	local suite = test.declare("tools_gcc")
 
 	local gcc = p.tools.gcc
+	local projectDirective = project
 	local project = p.project
 
 
@@ -387,7 +388,7 @@
 		prepare()
 		test.contains({ "-dynamiclib" }, gcc.getldflags(cfg))
 	end
-	
+
 --
 -- Check Mac OS X deployment target flags
 --
@@ -398,14 +399,14 @@
 		prepare()
 		test.contains({ "-mmacosx-version-min=10.9" }, gcc.getcflags(cfg))
 	end
-	
+
 	function suite.cxxflags_macosx_systemversion()
 		system "MacOSX"
 		systemversion "10.9:10.15"
 		prepare()
 		test.contains({ "-mmacosx-version-min=10.9" }, gcc.getcxxflags(cfg))
 	end
-	
+
 	function suite.cxxflags_macosx_systemversion_unspecified()
 		system "MacOSX"
 		prepare()
@@ -531,6 +532,40 @@
 
 		prepare()
 		test.isequal({ "lib/libMyProject2.so" }, gcc.getlinks(cfg))
+	end
+
+
+--
+-- Test linking of dependencies of static libraries
+--
+
+	function suite.links_staticSiblingLibraryDependencies()
+		local n = #wks.projects + 1
+		if n == 1 then n = "" end
+		local nameA = "lib" .. tostring(n)
+		projectDirective(nameA)
+		language "C++"
+		kind "StaticLib"
+
+		local nameB = "lib" .. tostring(n+1)
+		projectDirective(nameB)
+		language "C++"
+		kind "StaticLib"
+		links(nameA)
+
+		local nameC = "exe" .. tostring(n+2)
+		prj = projectDirective(nameC)
+		language "C++"
+		kind "ConsoleApp"
+		links(nameB)
+
+		prepare()
+
+		local links = gcc.getlinks(cfg)
+		for i,v in ipairs(links) do
+			print(v)
+		end
+		test.isequal({"bin/Debug/lib" .. nameB .. ".a", "bin/Debug/lib" .. nameA .. ".a"}, links)
 	end
 
 
