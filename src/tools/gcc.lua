@@ -474,7 +474,55 @@
 --
 
 	function gcc.getlinks(cfg, systemonly, nogroups)
+		--
+		-- Adds a link to the list of links tbl.
+		--
+		local function addLink (tbl, link)
+			for i,v in ipairs(tbl) do
+				-- Remove duplicates. As the link order of libraries matters,
+				-- the newly added lib needs to be at the end of the list.
+				if v == link then
+					table.remove(tbl, i)
+					break
+				end
+			end
+
+			table.insert(tbl, link)
+		end
+
+		--
+		-- Add the links from the specified project and all of its dependencies to the list 'tbl'.
+		-- If prjName is nil it uses the adds the libs of
+		--
+		local function addLinks (tbl, cfg, prjName)
+			-- As only the 'links' field matters, the config can be used as the project
+			-- on the first level of recursion.
+			local prj = cfg
+			if prjName ~= nil then
+				prj = cfg.solution.projects[prjName]
+				if prj == nil then
+					-- The link does not link to a sibling project.
+					return
+				end
+			end
+			for _,v in ipairs(prj.links) do
+				addLink(tbl, v)
+				addLinks(tbl, cfg, v)
+			end
+		end
+
+		-- Only calculate the dependencies once.
+		if cfg._gccLinkAddDone ~= true then
+			newLinks = {}
+			addLinks(newLinks, cfg)
+
+			-- replace the old links with the updated version.
+			cfg.links = newLinks
+			cfg._gccLinkAddDone = true
+		end
+
 		local result = {}
+
 
 		if not systemonly then
 			if cfg.flags.RelativeLinks then
