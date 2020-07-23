@@ -492,28 +492,37 @@
 		-- still be before the other in result when this function returns. If the link order is
 		-- contradictory, the function just chooses one path over the other. This will not break
 		-- anything, as the link-order is irrelevant in this case.
+		-- Insertpoint is the index of the library, whose dependencies will get inserted.
 		--
-		local function insertAdditionalLinks(result, additionalLinks)
+		local function insertAdditionalLinks(result, additionalLinks, insertPoint)
 			-- The amount of elements from additionalLinks that have been inserted.
 			local nInserted = 0
 			for i,v in ipairs(additionalLinks) do
 				local targetIndex = find(result, v)
 				-- Is this link already in the result list?
 				if targetIndex ~= nil then
-					-- Are there any links, that have not been inserted?
+					-- Are there any links before this link, that have not been inserted?
 					if nInserted <= i - 1 then
 						for k = i - 1, nInserted + 1, -1  do
-							-- Insert the link into the table, before the current element.
-							table.insert(result, targetIndex, additionalLinks[k])
+							-- Insert the link into the table, at the earliest possible position.
+							table.insert(result, insertPoint + 1, additionalLinks[k])
 						end
+					end
+					if insertPoint < targetIndex then
+						-- All dependencies after this
+						insertPoint = targetIndex
 					end
 					-- We have inserted all elements before this.
 					nInserted = i;
 				end
 			end
 			-- Append all missing elements to the back.
-			for i = nInserted+1, #additionalLinks do
-				table.insert(result, additionalLinks[i])
+			for i = #additionalLinks, nInserted+1,-1 do
+				table.insert(result, insertPoint + 1, additionalLinks[i])
+			end
+
+			for _,v in ipairs(additionalLinks) do
+				assert(find(result, v) ~= nil, v .. " not found")
 			end
 		end
 
@@ -535,7 +544,7 @@
 					-- Get the links of this project.
 					local additionalLinks = intnlGetLinks(cfg, dependantProject)
 					-- And insert them.
-					insertAdditionalLinks(result, additionalLinks)
+					insertAdditionalLinks(result, additionalLinks, i)
 				end
 			end
 			return result

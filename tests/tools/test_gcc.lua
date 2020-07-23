@@ -599,7 +599,7 @@
 		local function getLibName(name) return "bin/Debug/lib" .. name .. ".a" end
 
 		local links = gcc.getlinks(cfg)
-		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[1]), getLibName(deps[3]), getLibName(deps[2])}, links)
+		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[1]), getLibName(deps[2]), getLibName(deps[3])}, links)
 	end
 
 	function suite.links_onContradictoryLinkOrder()
@@ -607,7 +607,7 @@
 
 		deps = {}
 		for i = 1,3 do
-			deps[i] = "dep" .. (i + n + 2)
+			deps[i] = "dep" .. (i)
 			projectDirective(deps[i])
 			language "C++"
 			kind "StaticLib"
@@ -617,13 +617,13 @@
 		projectDirective(nameA)
 		language "C++"
 		kind "StaticLib"
-		links {deps[2], deps[1], deps[3]}
+		links {deps[3], deps[1], deps[2]}
 
 		local nameB = "lib" .. tostring(n+1)
 		projectDirective(nameB)
 		language "C++"
 		kind "StaticLib"
-		links {nameA, deps[1], deps[2], deps[3]}
+		links {nameA, deps[2], deps[1]}
 
 		local nameC = "exe" .. tostring(n+2)
 		prj = projectDirective(nameC)
@@ -636,7 +636,7 @@
 		local function getLibName(name) return "bin/Debug/lib" .. name .. ".a" end
 
 		local links = gcc.getlinks(cfg)
-		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[1]), getLibName(deps[2]), getLibName(deps[3])}, links)
+		test.isequal({getLibName(nameB), getLibName(nameA), getLibName(deps[3]), getLibName(deps[2]), getLibName(deps[1])}, links)
 	end
 --
 -- Test that sibling and external links are grouped when required
